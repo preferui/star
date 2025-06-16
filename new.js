@@ -3,7 +3,7 @@
 
   const ratingSection = document.querySelector(".ghRating-section");
 
-  if (!ratingSection || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") {
+  if (!ratingSection || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") { 
     location.href = "https://prefer-ui.blogspot.com";
     return;
   }
