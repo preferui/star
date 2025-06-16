@@ -5,7 +5,7 @@
     location.href = "https://prefer-ui.blogspot.com";
     return;
   } 
-  const _0x460b87 = ghRatings.firebaseUrl.replace(/\/$/, '');
+  const _0x460b87 = ghRatings.firebaseUrl.replace(/\/$/, ''); 
   const _0x3b4a0f = _0xaad755.querySelector("#avgScore");
   const _0xc2c27d = _0xaad755.querySelector("#starsAverage");
   const _0x5186a7 = _0xaad755.querySelector(".total-rating .total");
