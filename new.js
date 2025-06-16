@@ -1,7 +1,7 @@
 (function () {
   const _0xaad755 = document.querySelector(".ghRating-section");
-  if (!_0xaad755 || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "Prefer UI") {
-    location.href = "https://realmios.blogspot.com";
+  if (!_0xaad755 || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") {
+    location.href = "https://prefer-ui.blogspot.com";
     return;
   }
   const _0x460b87 = ghRatings.firebaseUrl.replace(/\/$/, '');
