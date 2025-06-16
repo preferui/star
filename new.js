@@ -8,7 +8,7 @@
     location.href = "https://prefer-ui.blogspot.com";
     return;
   }
-
+ 
   const firebaseUrl = ghRatings.firebaseUrl.replace(/\/$/, "");
   const avgScoreEl = ratingSection.querySelector("#avgScore");
   const starsAverageEl = ratingSection.querySelector("#starsAverage");
