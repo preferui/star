@@ -1,26 +1,10 @@
 (function () {
-  // Chỉ chạy ở trang bài viết (URL chứa năm/tháng hoặc /p/) 
-  const isPostPage = /\/(\d{4}\/\d{2}\/|p\/)/.test(location.pathname);
-  if (!isPostPage) return;
-
-  // Kiểm tra ghRatings có tồn tại không an toàn bằng try/catch
-  let isValidCredit = false;
-  try {
-    isValidCredit = typeof ghRatings !== "undefined" && ghRatings.sharedBy === "prefer-ui.blogspot.com";
-  } catch (e) {
-    isValidCredit = false;
-  }
-
   const ratingSection = document.querySelector(".ghRating-section");
+  if (!ratingSection) return;
 
-  if (!ratingSection || !isValidCredit) {
-    location.href = "https://prefer-ui.blogspot.com";
-    return;
-  }
+  const firebaseUrl = (typeof ghRatings !== "undefined" && ghRatings.firebaseUrl) ? ghRatings.firebaseUrl.replace(/\/$/, '') : null;
+  if (!firebaseUrl) return;
 
-  // Dưới đây là phần xử lý bình chọn (giữ nguyên như bản sửa trước)
-
-  const firebaseUrl = ghRatings.firebaseUrl.replace(/\/$/, "");
   const avgScoreEl = ratingSection.querySelector("#avgScore");
   const starsAverageEl = ratingSection.querySelector("#starsAverage");
   const totalRatingEl = ratingSection.querySelector(".total-rating .total");
@@ -45,7 +29,7 @@
     }
   }
 
-  function getBloggerPostInfo(callback) {
+  function getPostInfo(callback) {
     const interval = setInterval(() => {
       if (window._WidgetManager && typeof _WidgetManager._GetAllData === "function") {
         clearInterval(interval);
@@ -78,7 +62,6 @@
         1.417 8.268L12 18.897 4.583 23.54 6 15.272 0 9.423l8.332-1.405z"/>
       `;
       starsAverageEl.appendChild(svg);
-
       svg.addEventListener("click", () => {
         if (!alreadyRated) {
           submitRating(i);
@@ -99,7 +82,6 @@
     totalRatingEl.textContent = count;
 
     const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
     for (let fp in fingerprints) {
       const rate = parseInt(fingerprints[fp]);
       if (rate >= 1 && rate <= 5) {
@@ -164,7 +146,7 @@
   }
 
   fingerprint = getFingerprint();
-  getBloggerPostInfo((blogKey, postKey) => {
+  getPostInfo((blogKey, postKey) => {
     blogId = blogKey;
     postId = postKey;
     fetchRating();
