@@ -1,5 +1,5 @@
 (function () {
-  // Chỉ chạy ở trang bài viết (URL chứa năm/tháng hoặc /p/)
+  // Chỉ chạy ở trang bài viết (URL chứa năm/tháng hoặc /p/) 
   const isPostPage = /\/(\d{4}\/\d{2}\/|p\/)/.test(location.pathname);
   if (!isPostPage) return;
 
