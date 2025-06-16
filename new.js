@@ -1,5 +1,5 @@
 (function () {
-  const ratingSection = document.querySelector(".ghRating-section");
+  const ratingSection = document.querySelector(".ghRating-section"); 
   if (!ratingSection) return;
 
   const firebaseUrl = (typeof ghRatings !== "undefined" && ghRatings.firebaseUrl) ? ghRatings.firebaseUrl.replace(/\/$/, '') : null;
