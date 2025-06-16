@@ -1,6 +1,7 @@
 (function () {
+  if (!location.pathname.match(/\/(\d{4}\/\d{2}\/|p\/)/)) return;
   const _0xaad755 = document.querySelector(".ghRating-section");
-  if (!_0xaad755 || typeof ghRatings === "undefined" || sharedBy !== "prefer-ui.blogspot.com") {
+  if (!_0xaad755 || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") {
     location.href = "https://prefer-ui.blogspot.com";
     return;
   } 
