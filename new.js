@@ -1,14 +1,25 @@
 (function () {
-  // Kiểm tra có đang ở trang bài viết không (URL chứa năm/tháng hoặc /p/)
-  if (!location.pathname.match(/\/(\d{4}\/\d{2}\/|p\/)/)) return;
+  // Chỉ chạy ở trang bài viết (URL chứa năm/tháng hoặc /p/)
+  const isPostPage = /\/(\d{4}\/\d{2}\/|p\/)/.test(location.pathname);
+  if (!isPostPage) return;
+
+  // Kiểm tra ghRatings có tồn tại không an toàn bằng try/catch
+  let isValidCredit = false;
+  try {
+    isValidCredit = typeof ghRatings !== "undefined" && ghRatings.sharedBy === "prefer-ui.blogspot.com";
+  } catch (e) {
+    isValidCredit = false;
+  }
 
   const ratingSection = document.querySelector(".ghRating-section");
 
-  if (!ratingSection || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") {
+  if (!ratingSection || !isValidCredit) {
     location.href = "https://prefer-ui.blogspot.com";
     return;
   }
- 
+
+  // Dưới đây là phần xử lý bình chọn (giữ nguyên như bản sửa trước)
+
   const firebaseUrl = ghRatings.firebaseUrl.replace(/\/$/, "");
   const avgScoreEl = ratingSection.querySelector("#avgScore");
   const starsAverageEl = ratingSection.querySelector("#starsAverage");
@@ -152,7 +163,6 @@
       });
   }
 
-  // Bắt đầu
   fingerprint = getFingerprint();
   getBloggerPostInfo((blogKey, postKey) => {
     blogId = blogKey;
