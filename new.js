@@ -1,5 +1,5 @@
 (function () {
-  if (!location.pathname.match(/\/(\d{4}\/\d{2}\/|p\/)/)) return;
+  if (!location.pathname.match(/\/(\d{4}\/\d{2}\/|p\/)/)) return; 
 
   const ratingSection = document.querySelector(".ghRating-section");
 
