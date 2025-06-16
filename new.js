@@ -3,7 +3,7 @@
   if (!_0xaad755 || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "prefer-ui.blogspot.com") {
     location.href = "https://prefer-ui.blogspot.com";
     return;
-  }
+  } 
   const _0x460b87 = ghRatings.firebaseUrl.replace(/\/$/, '');
   const _0x3b4a0f = _0xaad755.querySelector("#avgScore");
   const _0xc2c27d = _0xaad755.querySelector("#starsAverage");
