@@ -1,5 +1,4 @@
 (function () {
-  // Kiểm tra có đang ở trang bài viết không (URL chứa năm/tháng hoặc /p/)
   if (!location.pathname.match(/\/(\d{4}\/\d{2}\/|p\/)/)) return;
 
   const ratingSection = document.querySelector(".ghRating-section");
