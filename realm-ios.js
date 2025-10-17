@@ -1,5 +1,5 @@
 (function () {
-  // --- Khai báo & Kiểm tra Bắt buộc ---
+  // --- Khai báo & Kiểm tra Bắt buộc 3.0 ---
   const RATING_SECTION = document.querySelector(".ghRating-section");
 
   if (!RATING_SECTION || typeof ghRatings === "undefined" || !ghRatings.firebaseUrl) {
@@ -16,7 +16,25 @@
 
   let postIdKey = ''; 
   let blogIdKey = ''; 
+  let userFingerprint = ''; // Biến mới để lưu Fingerprint
   let hasUserRated = false; 
+
+  // --- Hàm Tạo Fingerprint (Được khôi phục) ---
+  function generateFingerprint() {
+    try {
+      // Sử dụng Canvas để tạo mã định danh duy nhất (Fingerprint)
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      ctx.textBaseline = "top";
+      ctx.font = "14px Arial";
+      // Sử dụng User Agent làm dữ liệu cơ bản
+      ctx.fillText(navigator.userAgent, 2, 2);
+      // Trả về mã base64 rút gọn
+      return btoa(canvas.toDataURL()).slice(0, 32); 
+    } catch {
+      return "anonymous";
+    }
+  }
 
   // --- Hàm hỗ trợ SEO và Blogger (Giữ nguyên) ---
 
@@ -66,7 +84,7 @@
     }, 100);
   }
 
-  // --- Hàm Hiển thị và Logic Đánh giá (Giữ nguyên Render Stars) ---
+  // --- Hàm Hiển thị và Logic Đánh giá ---
 
   function renderStars(average) {
     starsAverageEl.innerHTML = '';
@@ -103,8 +121,8 @@
     const totalCount = data?.["count"] || 0;
     const totalSum = data?.["sum"] || 0;
     const average = totalCount ? totalSum / totalCount : 0;
-
-    // Lấy chi tiết số votes cho từng sao (sử dụng scores)
+    
+    // Lấy chi tiết số votes cho từng sao
     const scoreCounts = data?.["scores"] || {};
     
     // --- 1. Hiển thị điểm trung bình và tổng votes ---
@@ -113,18 +131,12 @@
     
     // --- 2. Cập nhật thanh tiến trình và số votes chi tiết ---
     ratingProgressEls.forEach(el => {
-      // Lấy giá trị data-rate (1 đến 5)
       const rate = el.getAttribute("data-rate");
-      
-      // Lấy số votes cho sao hiện tại
       const votes = scoreCounts[rate] || 0; 
-      
-      // Tính toán phần trăm tiến trình
       const percentage = totalCount ? ((votes / totalCount) * 100).toFixed(1) : 0;
       
-      // *** ĐIỀU CHỈNH QUAN TRỌNG: Truy vấn phần tử con trong phạm vi 'el' ***
       const progressBar = el.querySelector(".progress-bar");
-      const votesEl = el.querySelector(".votes"); // Phần tử chứa số votes
+      const votesEl = el.querySelector(".votes");
 
       if (progressBar) {
         progressBar.style.width = percentage + "%";
@@ -134,17 +146,21 @@
       }
     });
 
-    // --- 3. Kiểm tra Local Storage (Chống đánh giá lại) ---
-    if (localStorage.getItem("gh_rated_" + postIdKey) === "true") {
+    // --- 3. KIỂM TRA ĐÃ ĐÁNH GIÁ (Sử dụng Fingerprint từ Firebase) ---
+    const fingerprints = data?.["fingerprints"] || {};
+    if (fingerprints[userFingerprint] || localStorage.getItem("gh_rated_" + postIdKey) === "true") {
       hasUserRated = true;
       ratedCaptionEl.classList.remove("hidden");
+    } else {
+      hasUserRated = false;
+      ratedCaptionEl.classList.add("hidden");
     }
 
     // --- 4. Cập nhật Schema Markup ---
     updateSchemaMarkup(totalCount, average);
   }
 
-  // --- Hàm Tải và Gửi dữ liệu (Giữ nguyên) ---
+  // --- Hàm Tải và Gửi dữ liệu ---
 
   function fetchRatings() {
     if (!blogIdKey || !postIdKey) return; 
@@ -159,6 +175,7 @@
   }
 
   function submitRating(newScore) {
+    // KIỂM TRA LẠI LẦN CUỐI TRƯỚC KHI GỬI
     if (hasUserRated) return;
 
     fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`)
@@ -166,10 +183,15 @@
       .then(currentData => {
         const currentCount = currentData?.["count"] || 0;
         const currentSum = currentData?.["sum"] || 0;
-        
-        // Lấy chi tiết số votes hiện tại (tạo mới nếu chưa có)
-        // Lưu ý: newScore là số (1-5), dùng làm key truy cập object
         const currentScores = currentData?.["scores"] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+        // Lấy danh sách fingerprints hiện tại
+        const currentFingerprints = currentData?.["fingerprints"] || {};
+
+        // KIỂM TRA FINGERPRINT TRÊN DATA CŨ (Nếu đã đánh giá lần trước)
+        if (currentFingerprints[userFingerprint]) {
+             hasUserRated = true;
+             return; // Dừng quá trình gửi
+        }
 
         // Tăng vote cho sao mới được đánh giá
         currentScores[newScore] = (currentScores[newScore] || 0) + 1;
@@ -178,8 +200,10 @@
           "sum": currentSum + newScore,
           "count": currentCount + 1,
           "scores": currentScores, 
+          // LƯU FINGERPRINT CỦA NGƯỜI DÙNG HIỆN TẠI
           "fingerprints": {
-            "no_fingerprint_v2": true 
+            ...currentFingerprints,
+            [userFingerprint]: true // Lưu FP để ngăn đánh giá lại
           }
         };
 
@@ -192,6 +216,7 @@
         });
       })
       .then(() => {
+        // Cập nhật Local Storage (Ngăn đánh giá lại tức thì/trên trình duyệt này)
         localStorage.setItem("gh_rated_" + postIdKey, "true"); 
         
         hasUserRated = true;
@@ -202,6 +227,8 @@
   }
 
   // --- Khởi tạo và Tải dữ liệu ---
+  userFingerprint = generateFingerprint(); // Tạo Fingerprint ngay khi khởi tạo
+
   getBlogAndPostId((blogId, postId) => {
     blogIdKey = blogId;
     postIdKey = postId;
