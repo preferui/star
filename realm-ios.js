@@ -1,161 +1,207 @@
 (function () {
-  // Lấy phần tử chứa giao diện đánh giá
-  const _0xaad755 = document.querySelector(".ghRating-section");
+  // --- Khai báo & Kiểm tra Bắt buộc ---
+  const RATING_SECTION = document.querySelector(".ghRating-section");
 
-  // Xóa phần kiểm tra credit/nguồn gốc và lệnh chuyển hướng trang
-  // if (!_0xaad755 || typeof ghRatings === "undefined" || ghRatings.sharedBy !== "www.giahuy.net") {
-  //   location.href = "https://www.giahuy.net/p/credit.html";
-  //   return;
-  // }
-  // Thêm kiểm tra đơn giản để đảm bảo phần tử đánh giá và biến ghRatings tồn tại
-  if (!_0xaad755 || typeof ghRatings === "undefined") {
+  // Kiểm tra điều kiện cần thiết
+  if (!RATING_SECTION || typeof ghRatings === "undefined" || !ghRatings.firebaseUrl) {
     console.error("Lỗi: Không tìm thấy phần tử đánh giá (.ghRating-section) hoặc biến ghRatings.");
     return;
   }
 
-  // Khởi tạo các biến như cũ
-  const _0x460b87 = ghRatings.firebaseUrl.replace(/\/$/, '');
-  const _0x3b4a0f = _0xaad755.querySelector("#avgScore");
-  const _0xc2c27d = _0xaad755.querySelector("#starsAverage");
-  const _0x5186a7 = _0xaad755.querySelector(".total-rating .total");
-  const _0x23d87d = _0xaad755.querySelector(".rated-caption");
-  const _0x408e4f = _0xaad755.querySelectorAll(".rating-progress");
-  let _0x52917e = '';
-  let _0x4b78f4 = false;
-  let _0x4073b5 = '';
-  let _0x338edf = '';
+  // Khởi tạo các biến DOM và cấu hình
+  const FIREBASE_URL = ghRatings.firebaseUrl.replace(/\/$/, '');
+  const avgScoreEl = RATING_SECTION.querySelector("#avgScore");
+  const starsAverageEl = RATING_SECTION.querySelector("#starsAverage");
+  const totalRatingEl = RATING_SECTION.querySelector(".total-rating .total");
+  const ratedCaptionEl = RATING_SECTION.querySelector(".rated-caption");
+  const ratingProgressEls = RATING_SECTION.querySelectorAll(".rating-progress");
 
-  // Hàm tạo vân tay trình duyệt (không đổi)
-  function _0x2f1c2f() {
-    try {
-      const _0xc96537 = document.createElement("canvas");
-      const _0x543b6a = _0xc96537.getContext("2d");
-      _0x543b6a.textBaseline = "top";
-      _0x543b6a.font = "14px Arial";
-      _0x543b6a.fillText(navigator.userAgent, 0x2, 0x2);
-      return btoa(_0xc96537.toDataURL()).slice(0x0, 0x20);
-    } catch {
-      return "anonymous";
+  let postIdKey = ''; 
+  let blogIdKey = ''; 
+  let hasUserRated = false; // Cờ kiểm tra trạng thái đánh giá
+
+  // --- Hàm hỗ trợ SEO và Blogger ---
+
+  /**
+   * Cập nhật Schema Markup (JSON-LD) cho Google Rich Snippets.
+   * Sử dụng data-schema-name được chèn bằng thẻ dữ liệu Blogger.
+   */
+  function updateSchemaMarkup(totalCount, avgScore) {
+    const schemaType = RATING_SECTION.getAttribute('data-schema-type') || 'Product';
+    
+    // Lấy tên bài viết từ thuộc tính data-schema-name (giả định đã chèn data:post.title/)
+    const postTitleFromData = RATING_SECTION.getAttribute('data-schema-name');
+    const name = postTitleFromData && postTitleFromData.trim() !== '' 
+        ? postTitleFromData.trim() 
+        : document.title || 'Bài viết';
+    
+    let schemaScript = document.querySelector('script[type="application/ld+json"][data-rating-schema]');
+    if (!schemaScript) {
+        schemaScript = document.createElement('script');
+        schemaScript.type = 'application/ld+json';
+        schemaScript.setAttribute('data-rating-schema', 'true');
+        document.head.appendChild(schemaScript);
+    }
+
+    if (totalCount > 0) {
+      const schemaData = {
+          "@context": "https://schema.org/",
+          "@type": schemaType,
+          "name": name, 
+          "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": avgScore.toFixed(2),
+              "reviewCount": totalCount
+          }
+      };
+      schemaScript.textContent = JSON.stringify(schemaData, null, 2);
+    } else {
+      // Nếu không có đánh giá, xóa nội dung Schema để tránh lỗi
+      schemaScript.textContent = '';
     }
   }
 
-  // Hàm lấy BlogID/PostID (không đổi)
-  function _0x9a3a7f(a) {
-    const _0x581212 = setInterval(() => {
+  /**
+   * Lấy BlogID và PostID từ Blogger WidgetManager.
+   */
+  function getBlogAndPostId(callback) {
+    const interval = setInterval(() => {
       if (window._WidgetManager && typeof _WidgetManager._GetAllData === "function") {
-        clearInterval(_0x581212);
+        clearInterval(interval);
         try {
-          const _0x5ee171 = _WidgetManager._GetAllData();
-          const _0xcbfeab = "BlogID_" + _0x5ee171.blog.blogId;
-          const _0x253b28 = "PostID_" + _0x5ee171.blog.postId;
-          a(_0xcbfeab, _0x253b28);
-        } catch (_0x296b40) {
-          console.error("Không thể lấy BlogID/PostID:", _0x296b40);
+          const data = _WidgetManager._GetAllData();
+          const blogId = "BlogID_" + data.blog.blogId;
+          const postId = "PostID_" + data.blog.postId;
+          callback(blogId, postId);
+        } catch (e) {
+          console.error("Không thể lấy BlogID/PostID:", e);
         }
       }
-    }, 0x64);
+    }, 100);
   }
 
-  // Hàm hiển thị sao (không đổi)
-  function _0x326ce5(a) {
-    _0xc2c27d.innerHTML = '';
-    for (let _0x4e05fa = 0x1; _0x4e05fa <= 0x5; _0x4e05fa++) {
-      let _0x1cfac3 = Math.min(0x64, Math.max(0x0, (a - _0x4e05fa + 0x1) * 0x64));
-      const _0x5768df = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      _0x5768df.setAttribute("viewBox", "0 0 24 24");
-      _0x5768df.innerHTML = "\n        <defs>\n          <linearGradient id=\"grad" + _0x4e05fa + "\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\">\n            <stop offset=\"" + _0x1cfac3 + "%\" stop-color=\"#e0ac33\"/>\n            <stop offset=\"" + _0x1cfac3 + "%\" stop-color=\"#ccc\"/>\n          </linearGradient>\n        </defs>\n        <path fill=\"url(#grad" + _0x4e05fa + ")\" d=\"M12 .587l3.668 7.431L24 9.423l-6 5.849\n        1.417 8.268L12 18.897 4.583 23.54 6 15.272 0 9.423l8.332-1.405z\"/>\n      ";
-      _0xc2c27d.appendChild(_0x5768df);
-      _0x5768df.addEventListener("click", () => {
-        if (_0x4b78f4) {
+  // --- Hàm Hiển thị và Logic Đánh giá ---
+
+  /**
+   * Hiển thị số sao trung bình bằng SVG.
+   */
+  function renderStars(average) {
+    starsAverageEl.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      let fillPercentage = Math.min(100, Math.max(0, (average - i + 1) * 100));
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.innerHTML = `
+        <defs>
+          <linearGradient id="grad${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="${fillPercentage}%" stop-color="#e0ac33"/>
+            <stop offset="${fillPercentage}%" stop-color="#ccc"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#grad${i})" d="M12 .587l3.668 7.431L24 9.423l-6 5.849
+        1.417 8.268L12 18.897 4.583 23.54 6 15.272 0 9.423l8.332-1.405z"/>
+      `;
+      starsAverageEl.appendChild(svg);
+      
+      // Thêm sự kiện click để đánh giá
+      svg.addEventListener("click", () => {
+        if (hasUserRated) {
           return;
         }
-        _0x426aba(_0x4e05fa);
+        submitRating(i);
       });
     }
-    _0x3b4a0f.textContent = '' + a.toFixed(0x1);
+    avgScoreEl.textContent = average.toFixed(1);
   }
 
-  // Hàm cập nhật giao diện (không đổi)
-  function _0x549e43(a) {
-    const _0x1a052f = a?.["count"] || 0x0;
-    const _0x23971c = a?.["sum"] || 0x0;
-    const _0x31b64b = a?.["fingerprints"] || {};
-    const _0x3978c5 = _0x1a052f ? _0x23971c / _0x1a052f : 0x0;
-    _0x326ce5(_0x3978c5);
-    _0x5186a7.textContent = _0x1a052f;
-    const _0x41c328 = {
-      0x1: 0x0,
-      0x2: 0x0,
-      0x3: 0x0,
-      0x4: 0x0,
-      0x5: 0x0
-    };
-    for (let _0x2d4f6a in _0x31b64b) {
-      const _0xb0671c = parseInt(_0x31b64b[_0x2d4f6a]);
-      if (_0xb0671c >= 0x1 && _0xb0671c <= 0x5) {
-        _0x41c328[_0xb0671c]++;
-      }
+  /**
+   * Cập nhật giao diện dựa trên dữ liệu tải về.
+   */
+  function updateUI(data) {
+    const totalCount = data?.["count"] || 0;
+    const totalSum = data?.["sum"] || 0;
+    const average = totalCount ? totalSum / totalCount : 0;
+    
+    // --- 1. Hiển thị ---
+    renderStars(average);
+    totalRatingEl.textContent = totalCount;
+    
+    // --- 2. Cập nhật thanh tiến trình ---
+    // (Giữ nguyên logic cũ của bạn để tránh thay đổi Rules Firebase, 
+    // nhưng cần một trường dữ liệu chi tiết nếu bạn muốn hiển thị thanh tiến trình chính xác)
+    // Tạm thời, các thanh tiến trình sẽ không được cập nhật chính xác trừ khi dữ liệu Firebase được sửa đổi.
+
+    // --- 3. Kiểm tra Local Storage (Chống đánh giá lại trên 1 trình duyệt) ---
+    // SỬ DỤNG POSTID LÀM KEY ĐỘC LẬP
+    if (localStorage.getItem("gh_rated_" + postIdKey) === "true") {
+      hasUserRated = true;
+      ratedCaptionEl.classList.remove("hidden");
     }
-    _0x408e4f.forEach(_0x4f3b3d => {
-      const _0x38c53b = parseInt(_0x4f3b3d.getAttribute("data-rate"));
-      const _0x417734 = _0x41c328[_0x38c53b] || 0x0;
-      const _0x193649 = _0x1a052f ? (_0x417734 / _0x1a052f * 0x64).toFixed(0x1) : 0x0;
-      const _0x5087ed = _0x4f3b3d.querySelector(".progress-bar");
-      const _0xc55d5f = _0x4f3b3d.querySelector(".votes");
-      if (_0x5087ed) {
-        _0x5087ed.style.width = _0x193649 + "%";
-      }
-      if (_0xc55d5f) {
-        _0xc55d5f.textContent = _0x417734;
-      }
-    });
-    if (_0x31b64b[_0x52917e]) {
-      _0x4b78f4 = true;
-      _0x23d87d.classList.remove("hidden");
-    }
+
+    // --- 4. Cập nhật Schema Markup ---
+    updateSchemaMarkup(totalCount, average);
   }
 
-  // Hàm tải dữ liệu (không đổi)
-  function _0x3ae138() {
-    fetch(_0x460b87 + "/ghRatings/" + _0x4073b5 + "/" + _0x338edf + ".json").then(_0xdc9c76 => _0xdc9c76.json()).then(_0x549e43);
-  }
+  /**
+   * Tải dữ liệu đánh giá từ Firebase.
+   */
+  function fetchRatings() {
+    if (!blogIdKey || !postIdKey) return; 
 
-  // Hàm gửi đánh giá (không đổi)
-  function _0x426aba(b) {
-    fetch(_0x460b87 + "/ghRatings/" + _0x4073b5 + "/" + _0x338edf + ".json").then(_0x3ae13e => _0x3ae13e.json()).then(_0x17509f => {
-      const _0x3d7946 = _0x17509f?.["count"] || 0x0;
-      const _0x93aebb = _0x17509f?.["sum"] || 0x0;
-      const _0x2e3428 = _0x17509f?.["fingerprints"] || {};
-      if (_0x2e3428[_0x52917e]) {
-        return;
-      }
-      const _0x1775f2 = {
-        "sum": _0x93aebb + b,
-        "count": _0x3d7946 + 0x1,
-        "fingerprints": {
-          ..._0x2e3428,
-          [_0x52917e]: b
-        }
-      };
-      return fetch(_0x460b87 + "/ghRatings/" + _0x4073b5 + "/" + _0x338edf + ".json", {
-        "method": "PUT",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "body": JSON.stringify(_0x1775f2)
+    fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`)
+      .then(response => response.json())
+      .then(updateUI)
+      .catch(error => {
+        console.error("Lỗi khi tải đánh giá:", error);
+        updateUI(null); 
       });
-    }).then(() => {
-      _0x4b78f4 = true;
-      _0x23d87d.classList.remove("hidden");
-      _0x3ae138();
-    });
   }
 
-  // Thực thi (không đổi)
-  _0x52917e = _0x2f1c2f();
-  _0x9a3a7f((_0x3f0262, _0x184058) => {
-    _0x4073b5 = _0x3f0262;
-    _0x338edf = _0x184058;
-    _0x3ae138();
+  /**
+   * Gửi đánh giá mới lên Firebase.
+   */
+  function submitRating(newScore) {
+    if (hasUserRated) return;
+
+    fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`)
+      .then(response => response.json())
+      .then(currentData => {
+        const currentCount = currentData?.["count"] || 0;
+        const currentSum = currentData?.["sum"] || 0;
+        
+        // Dữ liệu mới - KHÔNG CÓ FINGERPRINT THỰC SỰ
+        const newData = {
+          "sum": currentSum + newScore,
+          "count": currentCount + 1,
+          // Giữ trường "fingerprints" với giá trị placeholder để HỢP VỚI RULES FIREBASE CŨ
+          "fingerprints": {
+            "no_fingerprint_v2": true 
+          }
+        };
+
+        return fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`, {
+          "method": "PUT",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": JSON.stringify(newData)
+        });
+      })
+      .then(() => {
+        // --- LOGIC CHỐNG TRÙNG LẶP MỚI: Dùng Local Storage ---
+        localStorage.setItem("gh_rated_" + postIdKey, "true"); 
+        
+        hasUserRated = true;
+        ratedCaptionEl.classList.remove("hidden");
+        fetchRatings(); // Tải lại dữ liệu sau khi gửi thành công
+      })
+      .catch(error => console.error("Lỗi khi gửi đánh giá:", error));
+  }
+
+  // --- Khởi tạo và Tải dữ liệu ---
+  getBlogAndPostId((blogId, postId) => {
+    blogIdKey = blogId;
+    postIdKey = postId;
+    fetchRatings();
   });
 })();
