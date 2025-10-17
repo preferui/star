@@ -104,8 +104,7 @@
     const totalSum = data?.["sum"] || 0;
     const average = totalCount ? totalSum / totalCount : 0;
 
-    // Lấy chi tiết số votes cho từng sao (GIẢ ĐỊNH có trường 'scores' trong Firebase)
-    // Nếu bạn chưa sửa Firebase Rules và logic gửi, trường này sẽ là {}
+    // Lấy chi tiết số votes cho từng sao (sử dụng scores)
     const scoreCounts = data?.["scores"] || {};
     
     // --- 1. Hiển thị điểm trung bình và tổng votes ---
@@ -114,22 +113,23 @@
     
     // --- 2. Cập nhật thanh tiến trình và số votes chi tiết ---
     ratingProgressEls.forEach(el => {
+      // Lấy giá trị data-rate (1 đến 5)
       const rate = el.getAttribute("data-rate");
-      // Lấy số votes cho sao hiện tại (Sử dụng 0 nếu không có dữ liệu chi tiết)
+      
+      // Lấy số votes cho sao hiện tại
       const votes = scoreCounts[rate] || 0; 
       
       // Tính toán phần trăm tiến trình
       const percentage = totalCount ? ((votes / totalCount) * 100).toFixed(1) : 0;
       
+      // *** ĐIỀU CHỈNH QUAN TRỌNG: Truy vấn phần tử con trong phạm vi 'el' ***
       const progressBar = el.querySelector(".progress-bar");
-      const votesEl = el.querySelector(".votes");
+      const votesEl = el.querySelector(".votes"); // Phần tử chứa số votes
 
       if (progressBar) {
-        // Cập nhật chiều rộng thanh tiến trình
         progressBar.style.width = percentage + "%";
       }
       if (votesEl) {
-        // Cập nhật số votes
         votesEl.textContent = votes;
       }
     });
@@ -144,12 +144,11 @@
     updateSchemaMarkup(totalCount, average);
   }
 
-  // --- Hàm Tải và Gửi dữ liệu (Cần Sửa để lưu chi tiết Votes) ---
+  // --- Hàm Tải và Gửi dữ liệu (Giữ nguyên) ---
 
   function fetchRatings() {
     if (!blogIdKey || !postIdKey) return; 
 
-    // CHÚ Ý: Cần đảm bảo Firebase trả về trường 'scores' cho updateUI xử lý
     fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`)
       .then(response => response.json())
       .then(updateUI)
@@ -167,7 +166,9 @@
       .then(currentData => {
         const currentCount = currentData?.["count"] || 0;
         const currentSum = currentData?.["sum"] || 0;
+        
         // Lấy chi tiết số votes hiện tại (tạo mới nếu chưa có)
+        // Lưu ý: newScore là số (1-5), dùng làm key truy cập object
         const currentScores = currentData?.["scores"] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
 
         // Tăng vote cho sao mới được đánh giá
@@ -176,9 +177,7 @@
         const newData = {
           "sum": currentSum + newScore,
           "count": currentCount + 1,
-          // *** LƯU CHI TIẾT SỐ VOTES MỚI ***
           "scores": currentScores, 
-          // Giữ trường "fingerprints" placeholder để hợp với RULES cũ
           "fingerprints": {
             "no_fingerprint_v2": true 
           }
