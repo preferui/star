@@ -2,13 +2,11 @@
   // --- Khai báo & Kiểm tra Bắt buộc ---
   const RATING_SECTION = document.querySelector(".ghRating-section");
 
-  // Kiểm tra điều kiện cần thiết
   if (!RATING_SECTION || typeof ghRatings === "undefined" || !ghRatings.firebaseUrl) {
     console.error("Lỗi: Không tìm thấy phần tử đánh giá (.ghRating-section) hoặc biến ghRatings.");
     return;
   }
 
-  // Khởi tạo các biến DOM và cấu hình
   const FIREBASE_URL = ghRatings.firebaseUrl.replace(/\/$/, '');
   const avgScoreEl = RATING_SECTION.querySelector("#avgScore");
   const starsAverageEl = RATING_SECTION.querySelector("#starsAverage");
@@ -18,22 +16,14 @@
 
   let postIdKey = ''; 
   let blogIdKey = ''; 
-  let hasUserRated = false; // Cờ kiểm tra trạng thái đánh giá
+  let hasUserRated = false; 
 
-  // --- Hàm hỗ trợ SEO và Blogger ---
+  // --- Hàm hỗ trợ SEO và Blogger (Giữ nguyên) ---
 
-  /**
-   * Cập nhật Schema Markup (JSON-LD) cho Google Rich Snippets.
-   * Sử dụng data-schema-name được chèn bằng thẻ dữ liệu Blogger.
-   */
   function updateSchemaMarkup(totalCount, avgScore) {
     const schemaType = RATING_SECTION.getAttribute('data-schema-type') || 'Product';
-    
-    // Lấy tên bài viết từ thuộc tính data-schema-name (giả định đã chèn data:post.title/)
     const postTitleFromData = RATING_SECTION.getAttribute('data-schema-name');
-    const name = postTitleFromData && postTitleFromData.trim() !== '' 
-        ? postTitleFromData.trim() 
-        : document.title || 'Bài viết';
+    const name = postTitleFromData && postTitleFromData.trim() !== '' ? postTitleFromData.trim() : document.title || 'Bài viết';
     
     let schemaScript = document.querySelector('script[type="application/ld+json"][data-rating-schema]');
     if (!schemaScript) {
@@ -56,14 +46,10 @@
       };
       schemaScript.textContent = JSON.stringify(schemaData, null, 2);
     } else {
-      // Nếu không có đánh giá, xóa nội dung Schema để tránh lỗi
       schemaScript.textContent = '';
     }
   }
 
-  /**
-   * Lấy BlogID và PostID từ Blogger WidgetManager.
-   */
   function getBlogAndPostId(callback) {
     const interval = setInterval(() => {
       if (window._WidgetManager && typeof _WidgetManager._GetAllData === "function") {
@@ -80,11 +66,8 @@
     }, 100);
   }
 
-  // --- Hàm Hiển thị và Logic Đánh giá ---
+  // --- Hàm Hiển thị và Logic Đánh giá (Giữ nguyên Render Stars) ---
 
-  /**
-   * Hiển thị số sao trung bình bằng SVG.
-   */
   function renderStars(average) {
     starsAverageEl.innerHTML = '';
     for (let i = 1; i <= 5; i++) {
@@ -103,7 +86,6 @@
       `;
       starsAverageEl.appendChild(svg);
       
-      // Thêm sự kiện click để đánh giá
       svg.addEventListener("click", () => {
         if (hasUserRated) {
           return;
@@ -115,24 +97,44 @@
   }
 
   /**
-   * Cập nhật giao diện dựa trên dữ liệu tải về.
+   * Cập nhật giao diện bao gồm điểm trung bình, tổng votes và chi tiết thanh tiến trình.
    */
   function updateUI(data) {
     const totalCount = data?.["count"] || 0;
     const totalSum = data?.["sum"] || 0;
     const average = totalCount ? totalSum / totalCount : 0;
+
+    // Lấy chi tiết số votes cho từng sao (GIẢ ĐỊNH có trường 'scores' trong Firebase)
+    // Nếu bạn chưa sửa Firebase Rules và logic gửi, trường này sẽ là {}
+    const scoreCounts = data?.["scores"] || {};
     
-    // --- 1. Hiển thị ---
+    // --- 1. Hiển thị điểm trung bình và tổng votes ---
     renderStars(average);
     totalRatingEl.textContent = totalCount;
     
-    // --- 2. Cập nhật thanh tiến trình ---
-    // (Giữ nguyên logic cũ của bạn để tránh thay đổi Rules Firebase, 
-    // nhưng cần một trường dữ liệu chi tiết nếu bạn muốn hiển thị thanh tiến trình chính xác)
-    // Tạm thời, các thanh tiến trình sẽ không được cập nhật chính xác trừ khi dữ liệu Firebase được sửa đổi.
+    // --- 2. Cập nhật thanh tiến trình và số votes chi tiết ---
+    ratingProgressEls.forEach(el => {
+      const rate = el.getAttribute("data-rate");
+      // Lấy số votes cho sao hiện tại (Sử dụng 0 nếu không có dữ liệu chi tiết)
+      const votes = scoreCounts[rate] || 0; 
+      
+      // Tính toán phần trăm tiến trình
+      const percentage = totalCount ? ((votes / totalCount) * 100).toFixed(1) : 0;
+      
+      const progressBar = el.querySelector(".progress-bar");
+      const votesEl = el.querySelector(".votes");
 
-    // --- 3. Kiểm tra Local Storage (Chống đánh giá lại trên 1 trình duyệt) ---
-    // SỬ DỤNG POSTID LÀM KEY ĐỘC LẬP
+      if (progressBar) {
+        // Cập nhật chiều rộng thanh tiến trình
+        progressBar.style.width = percentage + "%";
+      }
+      if (votesEl) {
+        // Cập nhật số votes
+        votesEl.textContent = votes;
+      }
+    });
+
+    // --- 3. Kiểm tra Local Storage (Chống đánh giá lại) ---
     if (localStorage.getItem("gh_rated_" + postIdKey) === "true") {
       hasUserRated = true;
       ratedCaptionEl.classList.remove("hidden");
@@ -142,12 +144,12 @@
     updateSchemaMarkup(totalCount, average);
   }
 
-  /**
-   * Tải dữ liệu đánh giá từ Firebase.
-   */
+  // --- Hàm Tải và Gửi dữ liệu (Cần Sửa để lưu chi tiết Votes) ---
+
   function fetchRatings() {
     if (!blogIdKey || !postIdKey) return; 
 
+    // CHÚ Ý: Cần đảm bảo Firebase trả về trường 'scores' cho updateUI xử lý
     fetch(`${FIREBASE_URL}/ghRatings/${blogIdKey}/${postIdKey}.json`)
       .then(response => response.json())
       .then(updateUI)
@@ -157,9 +159,6 @@
       });
   }
 
-  /**
-   * Gửi đánh giá mới lên Firebase.
-   */
   function submitRating(newScore) {
     if (hasUserRated) return;
 
@@ -168,12 +167,18 @@
       .then(currentData => {
         const currentCount = currentData?.["count"] || 0;
         const currentSum = currentData?.["sum"] || 0;
+        // Lấy chi tiết số votes hiện tại (tạo mới nếu chưa có)
+        const currentScores = currentData?.["scores"] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+
+        // Tăng vote cho sao mới được đánh giá
+        currentScores[newScore] = (currentScores[newScore] || 0) + 1;
         
-        // Dữ liệu mới - KHÔNG CÓ FINGERPRINT THỰC SỰ
         const newData = {
           "sum": currentSum + newScore,
           "count": currentCount + 1,
-          // Giữ trường "fingerprints" với giá trị placeholder để HỢP VỚI RULES FIREBASE CŨ
+          // *** LƯU CHI TIẾT SỐ VOTES MỚI ***
+          "scores": currentScores, 
+          // Giữ trường "fingerprints" placeholder để hợp với RULES cũ
           "fingerprints": {
             "no_fingerprint_v2": true 
           }
@@ -188,12 +193,11 @@
         });
       })
       .then(() => {
-        // --- LOGIC CHỐNG TRÙNG LẶP MỚI: Dùng Local Storage ---
         localStorage.setItem("gh_rated_" + postIdKey, "true"); 
         
         hasUserRated = true;
         ratedCaptionEl.classList.remove("hidden");
-        fetchRatings(); // Tải lại dữ liệu sau khi gửi thành công
+        fetchRatings(); 
       })
       .catch(error => console.error("Lỗi khi gửi đánh giá:", error));
   }
